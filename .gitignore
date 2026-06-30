@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
+
+# Dependencies / build output
+node_modules/
+vendor/
+dist/
+build/
+*.egg-info/
+__pycache__/
+.env
+.env.local
+
+# Swift / Xcode
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/
+*.xcuserstate
