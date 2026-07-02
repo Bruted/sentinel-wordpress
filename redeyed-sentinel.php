@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name:       Redeyed Sentinel
- * Plugin URI:        https://redeyed.com
+ * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.0';
+		const VERSION = '1.0.1';
 
 		/**
 		 * Option name used to store all settings.
@@ -102,7 +102,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		public function get_options() {
 			$defaults = array(
 				'site_key'           => '',
-				'api_key'            => '',
+				'secret_key'            => '',
 				'base_url'           => self::DEFAULT_BASE_URL,
 				'enable_login'       => 0,
 				'enable_register'    => 0,
@@ -127,12 +127,12 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		}
 
 		/**
-		 * Get the configured API Key.
+		 * Get the configured Secret Key.
 		 *
 		 * @return string
 		 */
-		private function get_api_key() {
-			return (string) $this->get_options()['api_key'];
+		private function get_secret_key() {
+			return (string) $this->get_options()['secret_key'];
 		}
 
 		/**
@@ -154,7 +154,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 * @return bool
 		 */
 		private function is_configured() {
-			return '' !== $this->get_site_key() && '' !== $this->get_api_key();
+			return '' !== $this->get_site_key() && '' !== $this->get_secret_key();
 		}
 
 		/* --------------------------------------------------------------------- *
@@ -204,9 +204,9 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 
 			add_settings_field(
-				'api_key',
-				__( 'API Key', 'redeyed-sentinel' ),
-				array( $this, 'render_api_key_field' ),
+				'secret_key',
+				__( 'Secret Key', 'redeyed-sentinel' ),
+				array( $this, 'render_secret_key_field' ),
 				'redeyed-sentinel',
 				'redeyed_sentinel_keys'
 			);
@@ -268,7 +268,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 
 			$clean = array(
 				'site_key'        => isset( $input['site_key'] ) ? sanitize_text_field( $input['site_key'] ) : '',
-				'api_key'         => isset( $input['api_key'] ) ? sanitize_text_field( $input['api_key'] ) : $existing['api_key'],
+				'secret_key'         => isset( $input['secret_key'] ) ? sanitize_text_field( $input['secret_key'] ) : $existing['secret_key'],
 				'base_url'        => $base_url,
 				'enable_login'    => empty( $input['enable_login'] ) ? 0 : 1,
 				'enable_register' => empty( $input['enable_register'] ) ? 0 : 1,
@@ -283,7 +283,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 */
 		public function render_keys_section_intro() {
 			echo '<p>' . wp_kses_post(
-				__( 'Sentinel is free to install and does nothing until both keys are entered. Grab your <strong>Site Key</strong> from the Redeyed Lab → Developer → Sentinel Sites and your <strong>API Key</strong> from Developer → API Keys.', 'redeyed-sentinel' )
+				__( 'Sentinel is free to install and does nothing until both keys are entered. Grab your <strong>Site Key</strong> and <strong>Secret Key</strong> from the Redeyed Lab → Sentinel → Sites (the Secret Key is shown once when you create the site).', 'redeyed-sentinel' )
 			) . '</p>';
 		}
 
@@ -310,14 +310,14 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Render the API Key field. Never prints the stored secret.
 		 */
-		public function render_api_key_field() {
-			$has_key = '' !== $this->get_api_key();
+		public function render_secret_key_field() {
+			$has_key = '' !== $this->get_secret_key();
 			printf(
-				'<input type="password" class="regular-text" id="redeyed_sentinel_api_key" name="%1$s[api_key]" value="" autocomplete="new-password" placeholder="%2$s" />',
+				'<input type="password" class="regular-text" id="redeyed_sentinel_secret_key" name="%1$s[secret_key]" value="" autocomplete="new-password" placeholder="%2$s" />',
 				esc_attr( self::OPTION_KEY ),
-				esc_attr( $has_key ? __( 'A key is saved — leave blank to keep it', 'redeyed-sentinel' ) : __( 'Enter your secret API key', 'redeyed-sentinel' ) )
+				esc_attr( $has_key ? __( 'A key is saved — leave blank to keep it', 'redeyed-sentinel' ) : __( 'Enter your Secret Key', 'redeyed-sentinel' ) )
 			);
-			echo '<p class="description">' . esc_html__( 'Secret key, sent only server-side as the X-Api-Key header. It is never printed back here.', 'redeyed-sentinel' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Secret key for this site, sent only server-side to /sentinel/siteverify. It is never printed back here.', 'redeyed-sentinel' ) . '</p>';
 		}
 
 		/**
@@ -389,7 +389,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 
 				<?php if ( ! $this->is_configured() ) : ?>
 					<div class="notice notice-info inline">
-						<p><?php esc_html_e( 'Sentinel is currently inactive. Enter both a Site Key and an API Key to start protecting your forms.', 'redeyed-sentinel' ); ?></p>
+						<p><?php esc_html_e( 'Sentinel is currently inactive. Enter both a Site Key and a Secret Key to start protecting your forms.', 'redeyed-sentinel' ); ?></p>
 					</div>
 				<?php else : ?>
 					<div class="notice notice-success inline">
@@ -558,14 +558,14 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			if ( ! $this->is_configured() ) {
 				return;
 			}
-			if ( wp_script_is( 'redeyed-sentinel', 'enqueued' ) || wp_script_is( 'redeyed-sentinel', 'done' ) ) {
+			if ( wp_script_is( 'redeyed-sentinel', 'done' ) ) {
 				$this->script_printed = true;
 				return;
 			}
-			printf(
-				'<script src="%s" async></script>',
-				esc_url( $this->get_base_url() . '/sentinel.js' )
-			);
+			$this->enqueue_script();
+			if ( ! wp_script_is( 'redeyed-sentinel', 'done' ) ) {
+				wp_scripts()->do_item( 'redeyed-sentinel' );
+			}
 			$this->script_printed = true;
 		}
 
@@ -603,21 +603,20 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				return false;
 			}
 
-			$endpoint = $this->get_base_url() . '/api/v1/verify';
+			$endpoint = $this->get_base_url() . '/sentinel/siteverify';
 
 			$response = wp_remote_post(
 				$endpoint,
 				array(
 					'timeout' => 10,
 					'headers' => array(
-						'X-Api-Key'    => $this->get_api_key(),
 						'Content-Type' => 'application/json',
 						'Accept'       => 'application/json',
 					),
 					'body'    => wp_json_encode(
 						array(
-							'site_key' => $this->get_site_key(),
-							'token'    => $token,
+							'secret'   => $this->get_secret_key(),
+							'response' => $token,
 						)
 					),
 				)

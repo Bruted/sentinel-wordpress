@@ -1,40 +1,40 @@
 === Redeyed Sentinel ===
-Contributors: redeyedcorporation
-Tags: captcha, spam, security, login, comments, registration, anti-spam
+Contributors: bruted
+Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
-Tested up to: 6.5
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Add the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and inert until you add your keys.
+Free Redeyed Sentinel CAPTCHA and IP-reputation check for your WordPress login, registration and comment forms. Inert until keys are set.
 
 == Description ==
 
 Redeyed Sentinel is a free, self-hosted-friendly CAPTCHA and IP-reputation service for WordPress. It protects the three forms bots love most — login, registration and comments — without tracking your visitors or slowing your site down.
 
-The plugin is **free to install and does nothing until you enter your keys**. With no Site Key and API Key configured, Sentinel stays completely inert: no widget is rendered, no requests are made, and your forms behave exactly as before.
+The plugin is **free to install and does nothing until you enter your keys**. With no Site Key and Secret Key configured, Sentinel stays completely inert: no widget is rendered, no requests are made, and your forms behave exactly as before.
 
 **What you get**
 
 * Drop-in CAPTCHA widget on the WordPress login, registration and comment forms.
-* Server-side verification on submission — tokens are checked against the Sentinel API using your secret API key, which is never exposed in page markup.
+* Server-side verification on submission — tokens are checked against Sentinel using your site's Secret Key, which is never exposed in page markup.
 * Fail-open by design: if your keys are missing the plugin will not block anyone, and an admin notice reminds you that Sentinel is inactive.
 * Simple settings screen under Settings → Sentinel with per-form on/off switches.
 * Lightweight: one small async script, loaded only on the pages where a protected form appears.
 
 **Privacy**
 
-Your secret API key is sent only from your server to the Sentinel verification endpoint as the `X-Api-Key` header. It is never printed in HTML. The public Site Key is the only key that appears on the page, which is exactly what it is designed for.
+Your Secret Key is sent only from your server to the Sentinel verification endpoint (`/sentinel/siteverify`). It is never printed in HTML. The public Site Key is the only key that appears on the page, which is exactly what it is designed for.
 
 == Installation ==
 
-1. Upload the `redeyed-wordpress` folder to the `/wp-content/plugins/` directory, or install the plugin through the **Plugins → Add New** screen in WordPress.
+1. Upload the `redeyed-sentinel` folder to the `/wp-content/plugins/` directory, or install the plugin through the **Plugins → Add New** screen in WordPress.
 2. Activate the plugin through the **Plugins** screen. The plugin is installed free and is inactive until you add your keys.
 3. Go to **Settings → Sentinel**.
-4. Enter your **Site Key** from the Redeyed Lab → **Developer → Sentinel Sites**.
-5. Enter your **API Key** from **Developer → API Keys**.
+4. In the Redeyed Lab, open **Sentinel → Sites**, create a site, and copy its **Site Key** and **Secret Key** (the Secret Key is shown once).
+5. Paste the **Site Key** and **Secret Key** into the plugin settings.
 6. (Optional) Change the **Base URL** only if you run a self-hosted Sentinel deployment. The default is `https://redeyed.com`.
 7. Tick the forms you want to protect — **Login**, **Registration**, and/or **Comments** — and save.
 
@@ -44,15 +44,15 @@ That's it. Sentinel activates the moment both keys are present and at least one 
 
 = Does the plugin do anything before I enter my keys? =
 
-No. Without both a Site Key and an API Key, Sentinel is completely inert. No widget is rendered and no verification requests are made. It is safe to install and leave unconfigured.
+No. Without both a Site Key and a Secret Key, Sentinel is completely inert. No widget is rendered and no verification requests are made. It is safe to install and leave unconfigured.
 
 = Where do I get my keys? =
 
-Your **Site Key** comes from the Redeyed Lab → Developer → Sentinel Sites. Your **API Key** comes from Developer → API Keys. The Site Key is public and renders the widget; the API Key is secret and is only ever used server-side.
+Both keys come from the Redeyed Lab → **Sentinel → Sites**. Each site has a public **Site Key** (renders the widget) and a private **Secret Key** (used only server-side to verify). The Secret Key is shown once when you create the site — copy it then.
 
-= Is my secret API key exposed on the page? =
+= Is my Secret Key exposed on the page? =
 
-Never. The API key is sent only from your server to the Sentinel verification endpoint as the `X-Api-Key` request header. It is never written into your HTML and is never displayed back on the settings screen once saved.
+Never. The Secret Key is sent only from your server to the Sentinel verification endpoint (`/sentinel/siteverify`). It is never written into your HTML and is never displayed back on the settings screen once saved.
 
 = What happens if Sentinel can't be reached when someone submits a form? =
 
@@ -73,13 +73,20 @@ The WordPress login form, the user registration form, and the comment form. Each
 
 == Changelog ==
 
+= 1.0.1 =
+* Verification now uses the site's **Secret Key** against the public `/sentinel/siteverify` endpoint — no developer API key required.
+* Renamed the "API Key" setting to "Secret Key" to match the keys shown in the Lab.
+
 = 1.0.0 =
 * Initial release.
 * CAPTCHA rendering and server-side verification for login, registration and comment forms.
-* Settings screen with Site Key, API Key, Base URL and per-form toggles.
+* Settings screen with Site Key, Secret Key, Base URL and per-form toggles.
 * Fail-open behaviour and admin notice when keys are missing.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Verification now uses your site's Secret Key with /sentinel/siteverify — no separate API key needed.
 
 = 1.0.0 =
 Initial release of Redeyed Sentinel.

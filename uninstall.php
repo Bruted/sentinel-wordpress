@@ -16,15 +16,15 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 $redeyed_sentinel_option_key = 'redeyed_sentinel_options';
 
 if ( is_multisite() ) {
-	$site_ids = get_sites(
+	$redeyed_sentinel_site_ids = get_sites(
 		array(
 			'fields' => 'ids',
 			'number' => 0,
 		)
 	);
 
-	foreach ( (array) $site_ids as $site_id ) {
-		switch_to_blog( (int) $site_id );
+	foreach ( (array) $redeyed_sentinel_site_ids as $redeyed_sentinel_site_id ) {
+		switch_to_blog( (int) $redeyed_sentinel_site_id );
 		delete_option( $redeyed_sentinel_option_key );
 		restore_current_blog();
 	}

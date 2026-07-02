@@ -7,7 +7,7 @@ Sentinel is a self-hosted-friendly CAPTCHA + IP-reputation service. This plugin 
 ## Features
 
 - Drop-in CAPTCHA widget on the WordPress login, registration and comment forms.
-- Server-side token verification on submission. Your secret API key is sent only as the `X-Api-Key` header and is **never** printed in page markup.
+- Server-side token verification on submission. Your Secret Key is sent only in the server-side request body and is **never** printed in page markup.
 - Handles both Sentinel response shapes — passes when `data.success === true` **or** top-level `success === true`.
 - **Fail-open** when keys are missing: the plugin never blocks a site that hasn't been configured, and shows an admin notice that Sentinel is inactive.
 - Per-form on/off switches under **Settings → Sentinel**.
@@ -18,8 +18,8 @@ Sentinel is a self-hosted-friendly CAPTCHA + IP-reputation service. This plugin 
 1. Copy the `redeyed-wordpress` folder into `wp-content/plugins/`, or install it from the WordPress **Plugins → Add New** screen.
 2. Activate **Redeyed Sentinel** from the **Plugins** screen.
 3. Open **Settings → Sentinel**.
-4. Enter your **Site Key** (Redeyed Lab → Developer → Sentinel Sites).
-5. Enter your **API Key** (Developer → API Keys).
+4. Enter your **Site Key** (Redeyed Lab → Sentinel → Sites).
+5. Enter your **Secret Key** (Redeyed Lab → Sentinel → Sites; shown once, stays server-side).
 6. Optionally set a custom **Base URL** for self-hosted Sentinel (default `https://redeyed.com`).
 7. Enable the forms you want to protect and save.
 
@@ -46,15 +46,14 @@ The widget injects a hidden input named `sentinel-token`.
 On submission, the plugin reads `$_POST['sentinel-token']` and verifies it server-side via `wp_remote_post`:
 
 ```
-POST {BASE_URL}/api/v1/verify
-X-Api-Key: {API_KEY}
+POST {BASE_URL}/sentinel/siteverify
 Content-Type: application/json
 Accept: application/json
 
-{ "site_key": "{SITE_KEY}", "token": "<sentinel-token>" }
+{ "secret": "{SECRET_KEY}", "response": "<sentinel-token>", "remoteip": "<client IP>" }
 ```
 
-The submission passes only when the decoded response has `data.success === true` or `success === true`. Missing token, request error, or a non-passing result blocks the submission via `WP_Error` (login/registration) or `wp_die` (comments).
+The `remoteip` field is optional. The submission passes only when the decoded response has `success === true` (the response also carries `outcome` and `score`). Missing token, request error, or a non-passing result blocks the submission via `WP_Error` (login/registration) or `wp_die` (comments).
 
 ## Hooks used
 
