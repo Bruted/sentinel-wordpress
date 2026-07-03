@@ -4,7 +4,7 @@ Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -22,6 +22,7 @@ The plugin is **free to install and does nothing until you enter your keys**. Wi
 * Server-side verification on submission — tokens are checked against Sentinel using your site's Secret Key, which is never exposed in page markup.
 * Fail-open by design: if your keys are missing the plugin will not block anyone, and an admin notice reminds you that Sentinel is inactive.
 * Simple settings screen under Settings → Sentinel with per-form on/off switches.
+* Optional widget customization — set a site-wide widget type, theme, colour scheme and minimum difficulty. Every field is optional and off by default.
 * Lightweight: one small async script, loaded only on the pages where a protected form appears.
 
 **Privacy**
@@ -37,6 +38,7 @@ Your Secret Key is sent only from your server to the Sentinel verification endpo
 5. Paste the **Site Key** and **Secret Key** into the plugin settings.
 6. (Optional) Change the **Base URL** only if you run a self-hosted Sentinel deployment. The default is `https://redeyed.com`.
 7. Tick the forms you want to protect — **Login**, **Registration**, and/or **Comments** — and save.
+8. (Optional) Fill in any of the **Widget Customization** fields to change how the widget looks and behaves.
 
 That's it. Sentinel activates the moment both keys are present and at least one form is enabled.
 
@@ -66,12 +68,26 @@ Yes. Change the **Base URL** on the settings screen to point at your own Sentine
 
 The WordPress login form, the user registration form, and the comment form. Each can be enabled independently.
 
+= Can I customize how the widget looks? =
+
+Yes. The **Widget Customization** section of Settings → Sentinel adds four optional, site-wide defaults, each rendered as a `data-*` attribute on the widget only when you set it:
+
+* **Widget type** (`data-widget`) — e.g. `behavioral`, `checkbox`, `press_hold`, `image_pick`.
+* **Theme** (`data-theme`) — `auto`, `light` or `dark`.
+* **Colour scheme** (`data-scheme`) — a Sentinel colour-scheme name.
+* **Difficulty** (`data-difficulty`) — `easy`, `medium`, `hard`, `max`, or `1`–`6`.
+
+Every field is optional; leave any blank to use the Sentinel default. **Difficulty only raises the challenge** — it sets a minimum strength above the adaptive baseline, and a risky visitor is always challenged hard regardless. With Theme = `dark` and Difficulty = `hard` the widget renders as `<div class="sentinel-captcha" data-sitekey="…" data-theme="dark" data-difficulty="hard"></div>`.
+
 == Screenshots ==
 
 1. The Settings → Sentinel configuration screen.
 2. The Sentinel CAPTCHA widget on the login form.
 
 == Changelog ==
+
+= 1.0.2 =
+* Added optional widget customization: **Widget type**, **Theme**, **Colour scheme** and **Difficulty** settings, rendered as `data-widget` / `data-theme` / `data-scheme` / `data-difficulty`. Difficulty only *raises* challenge strength above the adaptive baseline.
 
 = 1.0.1 =
 * Verification now uses the site's **Secret Key** against the public `/sentinel/siteverify` endpoint — no developer API key required.
@@ -84,6 +100,9 @@ The WordPress login form, the user registration form, and the comment form. Each
 * Fail-open behaviour and admin notice when keys are missing.
 
 == Upgrade Notice ==
+
+= 1.0.2 =
+Optional widget customization — set the widget type, theme, colour scheme and difficulty from Settings → Sentinel.
 
 = 1.0.1 =
 Verification now uses your site's Secret Key with /sentinel/siteverify — no separate API key needed.

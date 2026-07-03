@@ -11,6 +11,7 @@ Sentinel is a self-hosted-friendly CAPTCHA + IP-reputation service. This plugin 
 - Handles both Sentinel response shapes — passes when `data.success === true` **or** top-level `success === true`.
 - **Fail-open** when keys are missing: the plugin never blocks a site that hasn't been configured, and shows an admin notice that Sentinel is inactive.
 - Per-form on/off switches under **Settings → Sentinel**.
+- Optional widget customization (type, theme, colour scheme, minimum difficulty) — site-wide defaults, all optional.
 - Loads a single small async script, only on pages with a protected form.
 
 ## Installation
@@ -22,6 +23,26 @@ Sentinel is a self-hosted-friendly CAPTCHA + IP-reputation service. This plugin 
 5. Enter your **Secret Key** (Redeyed Lab → Sentinel → Sites; shown once, stays server-side).
 6. Optionally set a custom **Base URL** for self-hosted Sentinel (default `https://redeyed.com`).
 7. Enable the forms you want to protect and save.
+8. (Optional) Set any of the **Widget Customization** fields to change how the widget looks and behaves.
+
+## Widget customization
+
+The **Widget Customization** section of **Settings → Sentinel** exposes four optional, site-wide defaults. Each is **completely optional** — leave any field blank to use the Sentinel default, and nothing changes from the original behaviour. When set, each value is rendered as a `data-*` attribute on the widget.
+
+| Setting | `data-*` attribute | Example values |
+| --- | --- | --- |
+| Widget type | `data-widget` | `behavioral`, `checkbox`, `press_hold`, `image_pick`, … |
+| Theme | `data-theme` | `auto`, `light`, `dark` |
+| Colour scheme | `data-scheme` | any Sentinel colour-scheme name |
+| Difficulty | `data-difficulty` | `easy`, `medium`, `hard`, `max`, or `1`–`6` |
+
+**Difficulty only raises the challenge.** The value sets a *minimum* challenge strength above the adaptive baseline — a risky visitor is always challenged hard regardless of this setting. It cannot make a challenge easier than Sentinel's own risk assessment would.
+
+For example, with **Theme** = `dark` and **Difficulty** = `hard`, the widget renders as:
+
+```html
+<div class="sentinel-captcha" data-sitekey="YOUR_SITE_KEY" data-theme="dark" data-difficulty="hard"></div>
+```
 
 ## How it works
 
@@ -38,6 +59,8 @@ and renders the widget inside the form:
 ```html
 <div class="sentinel-captcha" data-sitekey="YOUR_SITE_KEY"></div>
 ```
+
+Any [Widget Customization](#widget-customization) values you set are appended as `data-*` attributes on this div (only when non-empty), so the default markup above is unchanged unless you configure them.
 
 The widget injects a hidden input named `sentinel-token`.
 

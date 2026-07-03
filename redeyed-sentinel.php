@@ -3,7 +3,7 @@
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.1';
+		const VERSION = '1.0.2';
 
 		/**
 		 * Option name used to store all settings.
@@ -107,6 +107,10 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'enable_login'       => 0,
 				'enable_register'    => 0,
 				'enable_comments'    => 0,
+				'widget'             => '',
+				'theme'              => '',
+				'scheme'             => '',
+				'difficulty'         => '',
 			);
 
 			$options = get_option( self::OPTION_KEY, array() );
@@ -249,6 +253,45 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'redeyed-sentinel',
 				'redeyed_sentinel_placement'
 			);
+
+			add_settings_section(
+				'redeyed_sentinel_appearance',
+				__( 'Widget Customization', 'redeyed-sentinel' ),
+				array( $this, 'render_appearance_section_intro' ),
+				'redeyed-sentinel'
+			);
+
+			add_settings_field(
+				'widget',
+				__( 'Widget type', 'redeyed-sentinel' ),
+				array( $this, 'render_widget_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
+
+			add_settings_field(
+				'theme',
+				__( 'Theme', 'redeyed-sentinel' ),
+				array( $this, 'render_theme_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
+
+			add_settings_field(
+				'scheme',
+				__( 'Colour scheme', 'redeyed-sentinel' ),
+				array( $this, 'render_scheme_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
+
+			add_settings_field(
+				'difficulty',
+				__( 'Difficulty', 'redeyed-sentinel' ),
+				array( $this, 'render_difficulty_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
 		}
 
 		/**
@@ -273,6 +316,10 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'enable_login'    => empty( $input['enable_login'] ) ? 0 : 1,
 				'enable_register' => empty( $input['enable_register'] ) ? 0 : 1,
 				'enable_comments' => empty( $input['enable_comments'] ) ? 0 : 1,
+				'widget'          => isset( $input['widget'] ) ? sanitize_text_field( $input['widget'] ) : '',
+				'theme'           => isset( $input['theme'] ) ? sanitize_text_field( $input['theme'] ) : '',
+				'scheme'          => isset( $input['scheme'] ) ? sanitize_text_field( $input['scheme'] ) : '',
+				'difficulty'      => isset( $input['difficulty'] ) ? sanitize_text_field( $input['difficulty'] ) : '',
 			);
 
 			return $clean;
@@ -292,6 +339,13 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 */
 		public function render_placement_section_intro() {
 			echo '<p>' . esc_html__( 'Choose which forms should display and verify the Sentinel CAPTCHA.', 'redeyed-sentinel' ) . '</p>';
+		}
+
+		/**
+		 * Intro copy for the widget customization section.
+		 */
+		public function render_appearance_section_intro() {
+			echo '<p>' . esc_html__( 'Optional site-wide defaults for how the Sentinel widget looks and behaves. Every field is optional — leave any blank to use the Sentinel default. These render as data-* attributes on the widget.', 'redeyed-sentinel' ) . '</p>';
 		}
 
 		/**
@@ -357,6 +411,69 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 */
 		public function render_enable_comments_field() {
 			$this->render_checkbox( 'enable_comments', __( 'Protect the comment form.', 'redeyed-sentinel' ) );
+		}
+
+		/**
+		 * Render the Widget type field.
+		 */
+		public function render_widget_field() {
+			$this->render_text_setting(
+				'widget',
+				'behavioral',
+				__( 'Widget style, e.g. <code>behavioral</code>, <code>checkbox</code>, <code>press_hold</code> or <code>image_pick</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Theme field.
+		 */
+		public function render_theme_field() {
+			$this->render_text_setting(
+				'theme',
+				'auto',
+				__( 'Widget theme: <code>auto</code>, <code>light</code> or <code>dark</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Colour scheme field.
+		 */
+		public function render_scheme_field() {
+			$this->render_text_setting(
+				'scheme',
+				'',
+				__( 'Optional colour scheme name for the widget. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Difficulty field.
+		 */
+		public function render_difficulty_field() {
+			$this->render_text_setting(
+				'difficulty',
+				'medium',
+				__( 'Minimum challenge strength: <code>easy</code>, <code>medium</code>, <code>hard</code>, <code>max</code> (or <code>1</code>–<code>6</code>). This only <strong>raises</strong> difficulty above the adaptive baseline — a risky visitor is always challenged hard regardless. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Helper to render a single optional text setting field.
+		 *
+		 * @param string $key         Option key.
+		 * @param string $placeholder Placeholder text.
+		 * @param string $description Description markup (a small set of HTML tags allowed).
+		 */
+		private function render_text_setting( $key, $placeholder, $description ) {
+			$options = $this->get_options();
+			printf(
+				'<input type="text" class="regular-text" id="redeyed_sentinel_%1$s" name="%2$s[%1$s]" value="%3$s" autocomplete="off" placeholder="%4$s" />',
+				esc_attr( $key ),
+				esc_attr( self::OPTION_KEY ),
+				esc_attr( $options[ $key ] ),
+				esc_attr( $placeholder )
+			);
+			echo '<p class="description">' . wp_kses_post( $description ) . '</p>';
 		}
 
 		/**
@@ -502,15 +619,37 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 
 		/**
 		 * Output the widget markup.
+		 *
+		 * Renders each optional customization as a data-* attribute, but only when
+		 * the value is non-empty so unconfigured widgets keep their original markup.
 		 */
 		private function render_widget() {
 			if ( ! $this->is_configured() ) {
 				return;
 			}
-			printf(
-				'<div class="sentinel-captcha" data-sitekey="%s"></div>',
-				esc_attr( $this->get_site_key() )
+
+			$options = $this->get_options();
+
+			// Map each option to the data-* attribute it renders as.
+			$customizations = array(
+				'widget'     => 'data-widget',
+				'theme'      => 'data-theme',
+				'scheme'     => 'data-scheme',
+				'difficulty' => 'data-difficulty',
 			);
+
+			// Output each piece through an escaping function AT the point of
+			// output so WordPress.Security.EscapeOutput is satisfied (a
+			// pre-built string variable trips the sniff even when its parts are
+			// individually escaped).
+			echo '<div class="sentinel-captcha" data-sitekey="' . esc_attr( $this->get_site_key() ) . '"';
+			foreach ( $customizations as $option_key => $data_attr ) {
+				$value = isset( $options[ $option_key ] ) ? trim( (string) $options[ $option_key ] ) : '';
+				if ( '' !== $value ) {
+					echo ' ' . esc_attr( $data_attr ) . '="' . esc_attr( $value ) . '"';
+				}
+			}
+			echo '></div>';
 		}
 
 		/**
