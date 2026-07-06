@@ -3,7 +3,7 @@
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.3
+ * Version:           1.0.4
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.3';
+		const VERSION = '1.0.4';
 
 		/**
 		 * Option name used to store all settings.
@@ -111,6 +111,8 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'              => '',
 				'scheme'             => '',
 				'difficulty'         => '',
+				'width'              => '',
+				'form'               => '',
 			);
 
 			$options = get_option( self::OPTION_KEY, array() );
@@ -292,6 +294,22 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'redeyed-sentinel',
 				'redeyed_sentinel_appearance'
 			);
+
+			add_settings_field(
+				'width',
+				__( 'Width', 'redeyed-sentinel' ),
+				array( $this, 'render_width_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
+
+			add_settings_field(
+				'form',
+				__( 'Form key', 'redeyed-sentinel' ),
+				array( $this, 'render_form_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
 		}
 
 		/**
@@ -320,6 +338,8 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'           => isset( $input['theme'] ) ? sanitize_text_field( $input['theme'] ) : '',
 				'scheme'          => isset( $input['scheme'] ) ? sanitize_text_field( $input['scheme'] ) : '',
 				'difficulty'      => isset( $input['difficulty'] ) ? sanitize_text_field( $input['difficulty'] ) : '',
+				'width'           => isset( $input['width'] ) ? sanitize_text_field( $input['width'] ) : '',
+				'form'            => isset( $input['form'] ) ? sanitize_text_field( $input['form'] ) : '',
 			);
 
 			return $clean;
@@ -454,6 +474,28 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'difficulty',
 				'medium',
 				__( 'Minimum challenge strength: <code>easy</code>, <code>medium</code>, <code>hard</code>, <code>max</code> (or <code>1</code>–<code>6</code>). This only <strong>raises</strong> difficulty above the adaptive baseline — a risky visitor is always challenged hard regardless. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Width field.
+		 */
+		public function render_width_field() {
+			$this->render_text_setting(
+				'width',
+				'full',
+				__( 'Optional widget width, e.g. <code>full</code>, <code>100%</code> or <code>340px</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Form key field.
+		 */
+		public function render_form_field() {
+			$this->render_text_setting(
+				'form',
+				'',
+				__( 'Optional form identifier passed to the widget as <code>data-form</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
 			);
 		}
 
@@ -636,6 +678,8 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'      => 'data-theme',
 				'scheme'     => 'data-scheme',
 				'difficulty' => 'data-difficulty',
+				'width'      => 'data-width',
+				'form'       => 'data-form',
 			);
 
 			// Output each piece through an escaping function AT the point of
