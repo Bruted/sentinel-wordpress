@@ -3,7 +3,7 @@
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.2';
+		const VERSION = '1.0.3';
 
 		/**
 		 * Option name used to store all settings.
@@ -725,6 +725,27 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		}
 
 		/**
+		 * The visitor's real IP — proxy/CDN aware — so verify matches the solve IP.
+		 *
+		 * @return string
+		 */
+		private function get_client_ip() {
+			$keys = array( 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' );
+			foreach ( $keys as $key ) {
+				if ( empty( $_SERVER[ $key ] ) ) {
+					continue;
+				}
+				$raw   = sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
+				$parts = explode( ',', $raw ); // X-Forwarded-For: first entry is the client.
+				$ip    = trim( $parts[0] );
+				if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+					return $ip;
+				}
+			}
+			return '';
+		}
+
+		/**
 		 * Verify a token against the Sentinel API.
 		 *
 		 * Fails OPEN (returns true) when keys are not configured.
@@ -744,6 +765,19 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 
 			$endpoint = $this->get_base_url() . '/sentinel/siteverify';
 
+			// Send the visitor's real IP so verification matches the IP that
+			// solved the challenge. WITHOUT this, Sentinel falls back to THIS
+			// server's IP (a server-to-server call), the token never matches, and
+			// the captcha "verifies" but the form still rejects it.
+			$body = array(
+				'secret'   => $this->get_secret_key(),
+				'response' => $token,
+			);
+			$remote_ip = $this->get_client_ip();
+			if ( '' !== $remote_ip ) {
+				$body['remoteip'] = $remote_ip;
+			}
+
 			$response = wp_remote_post(
 				$endpoint,
 				array(
@@ -752,12 +786,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 						'Content-Type' => 'application/json',
 						'Accept'       => 'application/json',
 					),
-					'body'    => wp_json_encode(
-						array(
-							'secret'   => $this->get_secret_key(),
-							'response' => $token,
-						)
-					),
+					'body'    => wp_json_encode( $body ),
 				)
 			);
 

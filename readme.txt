@@ -4,7 +4,7 @@ Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -85,6 +85,9 @@ Every field is optional; leave any blank to use the Sentinel default. **Difficul
 2. The Sentinel CAPTCHA widget on the login form.
 
 == Changelog ==
+
+= 1.0.3 =
+* Fixed: the captcha could show "Verified" but the form still failed. Verification now sends the visitor's real IP (`remoteip`, proxy/CDN-aware) so it matches the IP that solved the challenge.
 
 = 1.0.2 =
 * Added optional widget customization: **Widget type**, **Theme**, **Colour scheme** and **Difficulty** settings, rendered as `data-widget` / `data-theme` / `data-scheme` / `data-difficulty`. Difficulty only *raises* challenge strength above the adaptive baseline.
