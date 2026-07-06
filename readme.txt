@@ -4,7 +4,7 @@ Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -22,7 +22,7 @@ The plugin is **free to install and does nothing until you enter your keys**. Wi
 * Server-side verification on submission — tokens are checked against Sentinel using your site's Secret Key, which is never exposed in page markup.
 * Fail-open by design: if your keys are missing the plugin will not block anyone, and an admin notice reminds you that Sentinel is inactive.
 * Simple settings screen under Settings → Sentinel with per-form on/off switches.
-* Optional widget customization — set a site-wide widget type, theme, colour scheme and minimum difficulty. Every field is optional and off by default.
+* Optional widget customization — set a site-wide widget type, theme, colour scheme, minimum difficulty, width and form key. Every field is optional and off by default.
 * Lightweight: one small async script, loaded only on the pages where a protected form appears.
 
 **Privacy**
@@ -70,12 +70,14 @@ The WordPress login form, the user registration form, and the comment form. Each
 
 = Can I customize how the widget looks? =
 
-Yes. The **Widget Customization** section of Settings → Sentinel adds four optional, site-wide defaults, each rendered as a `data-*` attribute on the widget only when you set it:
+Yes. The **Widget Customization** section of Settings → Sentinel adds six optional, site-wide defaults, each rendered as a `data-*` attribute on the widget only when you set it:
 
 * **Widget type** (`data-widget`) — e.g. `behavioral`, `checkbox`, `press_hold`, `image_pick`.
 * **Theme** (`data-theme`) — `auto`, `light` or `dark`.
 * **Colour scheme** (`data-scheme`) — a Sentinel colour-scheme name.
 * **Difficulty** (`data-difficulty`) — `easy`, `medium`, `hard`, `max`, or `1`–`6`.
+* **Width** (`data-width`) — e.g. `full`, `100%` or `340px`.
+* **Form key** (`data-form`) — an optional form identifier passed to the widget.
 
 Every field is optional; leave any blank to use the Sentinel default. **Difficulty only raises the challenge** — it sets a minimum strength above the adaptive baseline, and a risky visitor is always challenged hard regardless. With Theme = `dark` and Difficulty = `hard` the widget renders as `<div class="sentinel-captcha" data-sitekey="…" data-theme="dark" data-difficulty="hard"></div>`.
 
@@ -85,6 +87,9 @@ Every field is optional; leave any blank to use the Sentinel default. **Difficul
 2. The Sentinel CAPTCHA widget on the login form.
 
 == Changelog ==
+
+= 1.0.4 =
+* Added widget **Width** option (`data-width`) and **Form** key (`data-form`) to the Widget Customization section. Both are optional and render as `data-*` attributes only when set.
 
 = 1.0.3 =
 * Fixed: the captcha could show "Verified" but the form still failed. Verification now sends the visitor's real IP (`remoteip`, proxy/CDN-aware) so it matches the IP that solved the challenge.
