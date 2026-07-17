@@ -4,22 +4,23 @@ Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Free Redeyed Sentinel CAPTCHA and IP-reputation check for your WordPress login, registration and comment forms. Inert until keys are set.
+Self-hosted CAPTCHA & IP-reputation for WordPress login, registration, lost-password & comments, with a block log. Inert until keys are set.
 
 == Description ==
 
-Redeyed Sentinel is a free, self-hosted-friendly CAPTCHA and IP-reputation service for WordPress. It protects the three forms bots love most — login, registration and comments — without tracking your visitors or slowing your site down.
+Redeyed Sentinel is a free, self-hosted-friendly CAPTCHA and IP-reputation service for WordPress. It protects the forms bots love most — login, registration, lost-password and comments — without tracking your visitors or slowing your site down, and can log every blocked attempt so you can see it working.
 
 The plugin is **free to install and does nothing until you enter your keys**. With no Site Key and Secret Key configured, Sentinel stays completely inert: no widget is rendered, no requests are made, and your forms behave exactly as before.
 
 **What you get**
 
-* Drop-in CAPTCHA widget on the WordPress login, registration and comment forms.
+* Drop-in CAPTCHA widget on the WordPress login, registration, lost-password and comment forms.
 * Server-side verification on submission — tokens are checked against Sentinel using your site's Secret Key, which is never exposed in page markup.
+* Block log — optionally record every blocked attempt (form, IP, outcome, score, time) and review it under Settings → Sentinel Log.
 * Fail-open by design: if your keys are missing the plugin will not block anyone, and an admin notice reminds you that Sentinel is inactive.
 * Simple settings screen under Settings → Sentinel with per-form on/off switches.
 * Optional widget customization — set a site-wide widget type, theme, colour scheme, minimum difficulty, width and form key. Every field is optional and off by default.
@@ -88,6 +89,10 @@ Every field is optional; leave any blank to use the Sentinel default. **Difficul
 
 == Changelog ==
 
+= 1.0.5 =
+* Added **Lost Password** form protection (with its own on/off toggle), alongside login, registration and comments.
+* Added a **Block Log**: optionally record every blocked attempt (form, IP, outcome, score, time) and review or clear it under **Settings → Sentinel Log**. Toggle it under Protected Forms; the table is created on activation and removed on uninstall.
+
 = 1.0.4 =
 * Added widget **Width** option (`data-width`) and **Form** key (`data-form`) to the Widget Customization section. Both are optional and render as `data-*` attributes only when set.
 
@@ -108,6 +113,9 @@ Every field is optional; leave any blank to use the Sentinel default. **Difficul
 * Fail-open behaviour and admin notice when keys are missing.
 
 == Upgrade Notice ==
+
+= 1.0.5 =
+Now protects the lost-password form too, and can log blocked attempts under Settings → Sentinel Log.
 
 = 1.0.2 =
 Optional widget customization — set the widget type, theme, colour scheme and difficulty from Settings → Sentinel.

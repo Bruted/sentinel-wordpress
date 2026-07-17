@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
- * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration and comment forms. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.4
+ * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration, lost-password and comment forms, with an admin block log. Free to install and completely inert until you enter your Sentinel keys.
+ * Version:           1.0.5
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.4';
+		const VERSION = '1.0.5';
 
 		/**
 		 * Option name used to store all settings.
@@ -73,7 +73,9 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		private function __construct() {
 			// Admin settings.
 			add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
+			add_action( 'admin_menu', array( $this, 'add_log_page' ) );
 			add_action( 'admin_init', array( $this, 'register_settings' ) );
+			add_action( 'admin_init', array( $this, 'maybe_handle_log_actions' ) );
 			add_action( 'admin_notices', array( $this, 'maybe_show_inactive_notice' ) );
 			add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'plugin_action_links' ) );
 
@@ -81,13 +83,56 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			add_action( 'login_enqueue_scripts', array( $this, 'enqueue_login_assets' ) );
 			add_action( 'login_form', array( $this, 'render_login_widget' ) );
 			add_action( 'register_form', array( $this, 'render_register_widget' ) );
+			add_action( 'lostpassword_form', array( $this, 'render_lostpassword_widget' ) );
 			add_action( 'comment_form_after_fields', array( $this, 'render_comment_widget' ) );
 			add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_front_assets' ) );
 
 			// Verify on submission.
 			add_filter( 'authenticate', array( $this, 'verify_login' ), 30, 3 );
 			add_filter( 'registration_errors', array( $this, 'verify_registration' ), 10, 3 );
+			add_action( 'lostpassword_post', array( $this, 'verify_lostpassword' ), 10, 1 );
 			add_filter( 'preprocess_comment', array( $this, 'verify_comment' ) );
+		}
+
+		/* --------------------------------------------------------------------- *
+		 * Activation / block-log table
+		 * --------------------------------------------------------------------- */
+
+		/**
+		 * Fully-qualified block-log table name.
+		 *
+		 * @return string
+		 */
+		public static function log_table() {
+			global $wpdb;
+			return $wpdb->prefix . 'redeyed_sentinel_log';
+		}
+
+		/**
+		 * Activation hook: create the block-log table.
+		 */
+		public static function on_activate() {
+			global $wpdb;
+
+			$table           = self::log_table();
+			$charset_collate = $wpdb->get_charset_collate();
+
+			$sql = "CREATE TABLE {$table} (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				form VARCHAR(20) NOT NULL DEFAULT '',
+				ip VARCHAR(45) NOT NULL DEFAULT '',
+				user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+				subject VARCHAR(190) NOT NULL DEFAULT '',
+				outcome VARCHAR(40) NOT NULL DEFAULT '',
+				score FLOAT NULL,
+				created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+				PRIMARY KEY  (id),
+				KEY created_at (created_at),
+				KEY form (form)
+			) {$charset_collate};";
+
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+			dbDelta( $sql );
 		}
 
 		/* --------------------------------------------------------------------- *
@@ -106,7 +151,9 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'base_url'           => self::DEFAULT_BASE_URL,
 				'enable_login'       => 0,
 				'enable_register'    => 0,
+				'enable_lostpassword' => 0,
 				'enable_comments'    => 0,
+				'enable_logging'     => 1,
 				'widget'             => '',
 				'theme'              => '',
 				'scheme'             => '',
@@ -249,9 +296,25 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 
 			add_settings_field(
+				'enable_lostpassword',
+				__( 'Lost password form', 'redeyed-sentinel' ),
+				array( $this, 'render_enable_lostpassword_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_placement'
+			);
+
+			add_settings_field(
 				'enable_comments',
 				__( 'Comment form', 'redeyed-sentinel' ),
 				array( $this, 'render_enable_comments_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_placement'
+			);
+
+			add_settings_field(
+				'enable_logging',
+				__( 'Block log', 'redeyed-sentinel' ),
+				array( $this, 'render_enable_logging_field' ),
 				'redeyed-sentinel',
 				'redeyed_sentinel_placement'
 			);
@@ -333,7 +396,9 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'base_url'        => $base_url,
 				'enable_login'    => empty( $input['enable_login'] ) ? 0 : 1,
 				'enable_register' => empty( $input['enable_register'] ) ? 0 : 1,
+				'enable_lostpassword' => empty( $input['enable_lostpassword'] ) ? 0 : 1,
 				'enable_comments' => empty( $input['enable_comments'] ) ? 0 : 1,
+				'enable_logging'  => empty( $input['enable_logging'] ) ? 0 : 1,
 				'widget'          => isset( $input['widget'] ) ? sanitize_text_field( $input['widget'] ) : '',
 				'theme'           => isset( $input['theme'] ) ? sanitize_text_field( $input['theme'] ) : '',
 				'scheme'          => isset( $input['scheme'] ) ? sanitize_text_field( $input['scheme'] ) : '',
@@ -427,10 +492,26 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		}
 
 		/**
+		 * Render the "enable on lost password" checkbox.
+		 */
+		public function render_enable_lostpassword_field() {
+			$this->render_checkbox( 'enable_lostpassword', __( 'Protect the lost-password (password reset) form.', 'redeyed-sentinel' ) );
+		}
+
+		/**
 		 * Render the "enable on comments" checkbox.
 		 */
 		public function render_enable_comments_field() {
 			$this->render_checkbox( 'enable_comments', __( 'Protect the comment form.', 'redeyed-sentinel' ) );
+		}
+
+		/**
+		 * Render the "block log" checkbox.
+		 */
+		public function render_enable_logging_field() {
+			$this->render_checkbox( 'enable_logging', __( 'Record blocked attempts (form, IP, outcome, score) to the Sentinel block log.', 'redeyed-sentinel' ) );
+			$url = admin_url( 'options-general.php?page=redeyed-sentinel-log' );
+			echo '<p class="description"><a href="' . esc_url( $url ) . '">' . esc_html__( 'View the block log →', 'redeyed-sentinel' ) . '</a></p>';
 		}
 
 		/**
@@ -607,6 +688,153 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		}
 
 		/* --------------------------------------------------------------------- *
+		 * Block log (admin visibility)
+		 * --------------------------------------------------------------------- */
+
+		/**
+		 * Register the hidden "Sentinel Log" settings submenu page.
+		 */
+		public function add_log_page() {
+			add_submenu_page(
+				'options-general.php',
+				__( 'Sentinel Block Log', 'redeyed-sentinel' ),
+				__( 'Sentinel Log', 'redeyed-sentinel' ),
+				'manage_options',
+				'redeyed-sentinel-log',
+				array( $this, 'render_log_page' )
+			);
+		}
+
+		/**
+		 * Handle the "clear log" action (nonce + capability protected).
+		 */
+		public function maybe_handle_log_actions() {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return;
+			}
+			$page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+			$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+			if ( 'redeyed-sentinel-log' !== $page || 'clear' !== $action ) {
+				return;
+			}
+
+			check_admin_referer( 'redeyed_sentinel_clear_log' );
+
+			global $wpdb;
+			$table = self::log_table();
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) { // phpcs:ignore WordPress.DB
+				$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB
+			}
+
+			wp_safe_redirect( admin_url( 'options-general.php?page=redeyed-sentinel-log&cleared=1' ) );
+			exit;
+		}
+
+		/**
+		 * Render the block-log viewer.
+		 */
+		public function render_log_page() {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return;
+			}
+
+			global $wpdb;
+			$table  = self::log_table();
+			$exists = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ); // phpcs:ignore WordPress.DB
+
+			$per_page = 30;
+			$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$offset   = ( $paged - 1 ) * $per_page;
+
+			$total = 0;
+			$rows  = array();
+			if ( $exists ) {
+				$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}`" ); // phpcs:ignore WordPress.DB
+				$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM `{$table}` ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ) ); // phpcs:ignore WordPress.DB
+			}
+			?>
+			<div class="wrap">
+				<h1><?php esc_html_e( 'Redeyed Sentinel — Block Log', 'redeyed-sentinel' ); ?></h1>
+
+				<?php if ( isset( $_GET['cleared'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'The block log has been cleared.', 'redeyed-sentinel' ); ?></p></div>
+				<?php endif; ?>
+
+				<?php if ( ! $exists ) : ?>
+					<div class="notice notice-warning inline"><p><?php esc_html_e( 'The log table does not exist yet. Deactivate and reactivate the plugin to create it.', 'redeyed-sentinel' ); ?></p></div>
+				<?php else : ?>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: %s: number of blocked attempts */
+							esc_html__( 'Submissions blocked by Sentinel — the form, source IP, outcome and score. %s total.', 'redeyed-sentinel' ),
+							'<strong>' . esc_html( number_format_i18n( $total ) ) . '</strong>'
+						);
+						?>
+					</p>
+
+					<table class="widefat striped">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Time', 'redeyed-sentinel' ); ?></th>
+								<th><?php esc_html_e( 'Form', 'redeyed-sentinel' ); ?></th>
+								<th><?php esc_html_e( 'IP address', 'redeyed-sentinel' ); ?></th>
+								<th><?php esc_html_e( 'Identity', 'redeyed-sentinel' ); ?></th>
+								<th><?php esc_html_e( 'Outcome', 'redeyed-sentinel' ); ?></th>
+								<th><?php esc_html_e( 'Score', 'redeyed-sentinel' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php if ( empty( $rows ) ) : ?>
+								<tr><td colspan="6"><?php esc_html_e( 'No blocked attempts recorded yet.', 'redeyed-sentinel' ); ?></td></tr>
+							<?php else : ?>
+								<?php foreach ( $rows as $row ) : ?>
+									<tr>
+										<td><?php echo esc_html( $row->created_at ); ?></td>
+										<td><?php echo esc_html( $row->form ); ?></td>
+										<td><?php echo esc_html( $row->ip ); ?></td>
+										<td><?php echo '' !== $row->subject ? esc_html( $row->subject ) : '&mdash;'; ?></td>
+										<td><?php echo esc_html( $row->outcome ); ?></td>
+										<td><?php echo ( null === $row->score ) ? '&mdash;' : esc_html( $row->score ); ?></td>
+									</tr>
+								<?php endforeach; ?>
+							<?php endif; ?>
+						</tbody>
+					</table>
+
+					<?php
+					$total_pages = (int) ceil( $total / $per_page );
+					if ( $total_pages > 1 ) {
+						echo '<div class="tablenav"><div class="tablenav-pages">';
+						echo wp_kses_post(
+							paginate_links(
+								array(
+									'base'    => admin_url( 'options-general.php?page=redeyed-sentinel-log&paged=%#%' ),
+									'format'  => '',
+									'current' => $paged,
+									'total'   => $total_pages,
+								)
+							)
+						);
+						echo '</div></div>';
+					}
+					?>
+
+					<?php if ( $total > 0 ) : ?>
+						<p style="margin-top:1em;">
+							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'options-general.php?page=redeyed-sentinel-log&action=clear' ), 'redeyed_sentinel_clear_log' ) ); ?>"
+							   class="button"
+							   onclick="return confirm('<?php echo esc_js( __( 'Clear the entire Sentinel block log?', 'redeyed-sentinel' ) ); ?>');">
+								<?php esc_html_e( 'Clear log', 'redeyed-sentinel' ); ?>
+							</a>
+						</p>
+					<?php endif; ?>
+				<?php endif; ?>
+			</div>
+			<?php
+		}
+
+		/* --------------------------------------------------------------------- *
 		 * Rendering the widget
 		 * --------------------------------------------------------------------- */
 
@@ -615,7 +843,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 */
 		public function enqueue_login_assets() {
 			$options = $this->get_options();
-			if ( $this->is_configured() && ( ! empty( $options['enable_login'] ) || ! empty( $options['enable_register'] ) ) ) {
+			if ( $this->is_configured() && ( ! empty( $options['enable_login'] ) || ! empty( $options['enable_register'] ) || ! empty( $options['enable_lostpassword'] ) ) ) {
 				$this->enqueue_script();
 			}
 		}
@@ -720,6 +948,17 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		}
 
 		/**
+		 * Render widget inside the lost-password form.
+		 */
+		public function render_lostpassword_widget() {
+			$options = $this->get_options();
+			if ( ! empty( $options['enable_lostpassword'] ) ) {
+				$this->ensure_inline_script();
+				$this->render_widget();
+			}
+		}
+
+		/**
 		 * Render widget inside the comment form.
 		 */
 		public function render_comment_widget() {
@@ -797,14 +1036,22 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 * @param string $token Submitted token.
 		 * @return bool True when verification passed (or fail-open), false otherwise.
 		 */
-		private function verify_token( $token ) {
+		/**
+		 * Verify a token and return the full result (passed/outcome/score).
+		 *
+		 * @param string $token Submitted token.
+		 * @return array{passed: bool, outcome: string, score: float|null}
+		 */
+		private function verify_token_result( $token ) {
+			$fail = array( 'passed' => false, 'outcome' => 'error', 'score' => null );
+
 			// Fail open when not configured — never block a site without keys.
 			if ( ! $this->is_configured() ) {
-				return true;
+				return array( 'passed' => true, 'outcome' => 'skipped_no_secret', 'score' => null );
 			}
 
 			if ( '' === $token ) {
-				return false;
+				return $fail;
 			}
 
 			$endpoint = $this->get_base_url() . '/sentinel/siteverify';
@@ -835,30 +1082,80 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 
 			if ( is_wp_error( $response ) ) {
-				return false;
+				return $fail;
 			}
 
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			if ( $code < 200 || $code >= 300 ) {
-				return false;
+				return $fail;
 			}
 
-			$body = wp_remote_retrieve_body( $response );
-			$data = json_decode( $body, true );
+			$data = json_decode( wp_remote_retrieve_body( $response ), true );
 
 			if ( ! is_array( $data ) ) {
-				return false;
+				return $fail;
 			}
 
-			// Handle both response shapes: nested data.success and top-level success.
-			if ( isset( $data['data']['success'] ) && true === $data['data']['success'] ) {
-				return true;
-			}
-			if ( isset( $data['success'] ) && true === $data['success'] ) {
-				return true;
+			// Support both response shapes: nested data.* and top-level.
+			$payload = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
+			$outcome = isset( $payload['outcome'] ) ? (string) $payload['outcome'] : '';
+			$score   = isset( $payload['score'] ) ? (float) $payload['score'] : null;
+			$passed  = isset( $payload['success'] ) && true === $payload['success'];
+
+			return array( 'passed' => $passed, 'outcome' => $outcome, 'score' => $score );
+		}
+
+		/**
+		 * Verify the submitted token for a form; log a block on failure.
+		 *
+		 * @param string $form    login|register|lostpassword|comment.
+		 * @param string $subject Attempted username/email for the log.
+		 * @return bool Whether verification passed.
+		 */
+		private function guard( $form, $subject = '' ) {
+			$result = $this->verify_token_result( $this->get_submitted_token() );
+
+			if ( ! $result['passed'] ) {
+				$options = $this->get_options();
+				if ( ! empty( $options['enable_logging'] ) ) {
+					$this->log_block( $form, $result['outcome'], $result['score'], $subject );
+				}
 			}
 
-			return false;
+			return (bool) $result['passed'];
+		}
+
+		/**
+		 * Record a blocked attempt to the log table. Best-effort — never fatals.
+		 *
+		 * @param string     $form
+		 * @param string     $outcome
+		 * @param float|null $score
+		 * @param string     $subject
+		 */
+		private function log_block( $form, $outcome, $score, $subject = '' ) {
+			global $wpdb;
+
+			$table = self::log_table();
+
+			// Only attempt the insert when the table exists.
+			if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) { // phpcs:ignore WordPress.DB
+				return;
+			}
+
+			$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$table,
+				array(
+					'form'       => substr( (string) $form, 0, 20 ),
+					'ip'         => substr( $this->get_client_ip(), 0, 45 ),
+					'user_id'    => (int) get_current_user_id(),
+					'subject'    => substr( (string) $subject, 0, 190 ),
+					'outcome'    => substr( (string) $outcome, 0, 40 ),
+					'score'      => ( null === $score ) ? null : (float) $score,
+					'created_at' => current_time( 'mysql' ),
+				),
+				array( '%s', '%s', '%d', '%s', '%s', '%f', '%s' )
+			);
 		}
 
 		/**
@@ -884,7 +1181,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				return $user;
 			}
 
-			if ( ! $this->verify_token( $this->get_submitted_token() ) ) {
+			if ( ! $this->guard( 'login', (string) $username ) ) {
 				return new WP_Error(
 					'redeyed_sentinel_failed',
 					__( '<strong>Sentinel:</strong> CAPTCHA verification failed. Please try again.', 'redeyed-sentinel' )
@@ -909,7 +1206,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				return $errors;
 			}
 
-			if ( ! $this->verify_token( $this->get_submitted_token() ) ) {
+			if ( ! $this->guard( 'register', (string) $sanitized_user_login ) ) {
 				$errors->add(
 					'redeyed_sentinel_failed',
 					__( '<strong>Sentinel:</strong> CAPTCHA verification failed. Please try again.', 'redeyed-sentinel' )
@@ -917,6 +1214,39 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			}
 
 			return $errors;
+		}
+
+		/**
+		 * Verify the lost-password form (lostpassword_post action).
+		 *
+		 * @param WP_Error $errors Existing errors (WP 5.4+ passes this).
+		 * @return void
+		 */
+		public function verify_lostpassword( $errors = null ) {
+			$options = $this->get_options();
+
+			if ( empty( $options['enable_lostpassword'] ) || ! $this->is_configured() ) {
+				return;
+			}
+
+			if ( ! $this->guard( 'lostpassword' ) ) {
+				if ( is_wp_error( $errors ) ) {
+					$errors->add(
+						'redeyed_sentinel_failed',
+						__( '<strong>Sentinel:</strong> CAPTCHA verification failed. Please try again.', 'redeyed-sentinel' )
+					);
+				} else {
+					// Older WP without the $errors arg: stop outright.
+					wp_die(
+						esc_html__( 'Sentinel: CAPTCHA verification failed. Please go back and try again.', 'redeyed-sentinel' ),
+						esc_html__( 'Verification Failed', 'redeyed-sentinel' ),
+						array(
+							'response'  => 403,
+							'back_link' => true,
+						)
+					);
+				}
+			}
 		}
 
 		/**
@@ -933,7 +1263,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			}
 
 			// Skip verification for logged-in users performing trusted actions? Keep strict by default.
-			if ( ! $this->verify_token( $this->get_submitted_token() ) ) {
+			if ( ! $this->guard( 'comment' ) ) {
 				wp_die(
 					esc_html__( 'Sentinel: CAPTCHA verification failed. Please go back and try again.', 'redeyed-sentinel' ),
 					esc_html__( 'Comment Blocked', 'redeyed-sentinel' ),
@@ -957,3 +1287,6 @@ function redeyed_sentinel() {
 	return Redeyed_Sentinel::instance();
 }
 add_action( 'plugins_loaded', 'redeyed_sentinel' );
+
+// Create the block-log table on activation.
+register_activation_hook( __FILE__, array( 'Redeyed_Sentinel', 'on_activate' ) );

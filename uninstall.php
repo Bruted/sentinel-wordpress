@@ -15,6 +15,16 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 $redeyed_sentinel_option_key = 'redeyed_sentinel_options';
 
+/**
+ * Remove the plugin's option and block-log table for the current site.
+ */
+function redeyed_sentinel_uninstall_site( $option_key ) {
+	global $wpdb;
+	delete_option( $option_key );
+	$table = $wpdb->prefix . 'redeyed_sentinel_log';
+	$wpdb->query( "DROP TABLE IF EXISTS `{$table}`" ); // phpcs:ignore WordPress.DB
+}
+
 if ( is_multisite() ) {
 	$redeyed_sentinel_site_ids = get_sites(
 		array(
@@ -25,9 +35,9 @@ if ( is_multisite() ) {
 
 	foreach ( (array) $redeyed_sentinel_site_ids as $redeyed_sentinel_site_id ) {
 		switch_to_blog( (int) $redeyed_sentinel_site_id );
-		delete_option( $redeyed_sentinel_option_key );
+		redeyed_sentinel_uninstall_site( $redeyed_sentinel_option_key );
 		restore_current_blog();
 	}
 } else {
-	delete_option( $redeyed_sentinel_option_key );
+	redeyed_sentinel_uninstall_site( $redeyed_sentinel_option_key );
 }
