@@ -3,7 +3,7 @@
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration, lost-password and comment forms, with an admin block log. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.5
+ * Version:           1.0.7
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -29,7 +29,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '1.0.5';
+		const VERSION = '1.0.7';
 
 		/**
 		 * Option name used to store all settings.
@@ -472,7 +472,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 			echo '<p class="description">' . sprintf(
 				/* translators: %s: default base URL */
-				esc_html__( 'Defaults to %s. Only change this for self-hosted Sentinel deployments.', 'redeyed-sentinel' ),
+				esc_html__( 'Defaults to %s. Only change this to point at a custom Sentinel endpoint.', 'redeyed-sentinel' ),
 				'<code>' . esc_html( self::DEFAULT_BASE_URL ) . '</code>'
 			) . '</p>';
 		}
@@ -518,10 +518,33 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 * Render the Widget type field.
 		 */
 		public function render_widget_field() {
-			$this->render_text_setting(
+			$caps    = $this->get_capabilities();
+			$is_live = is_array( $caps );
+
+			$choices = array(
+				'adaptive' => __( 'Adaptive — escalate by risk (recommended)', 'redeyed-sentinel' ),
+				'all'      => __( 'Random — a different type per visitor', 'redeyed-sentinel' ),
+			);
+
+			if ( $is_live ) {
+				foreach ( (array) $caps['types']['concrete'] as $type ) {
+					$choices[ $type ] = $type;
+				}
+			} else {
+				// Offline fallback. Kept deliberately short: the server is the
+				// source of truth, and a long stale list here is what caused
+				// the drift this endpoint exists to prevent.
+				foreach ( array( 'behavioral', 'pow', 'press_hold', 'text_math', 'image_pick' ) as $type ) {
+					$choices[ $type ] = $type;
+				}
+			}
+
+			$this->render_select_setting(
 				'widget',
-				'behavioral',
-				__( 'Widget style, e.g. <code>behavioral</code>, <code>checkbox</code>, <code>press_hold</code> or <code>image_pick</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+				$choices,
+				__( 'Use the Sentinel default', 'redeyed-sentinel' ),
+				__( 'Which challenge the widget renders. <strong>Adaptive</strong> is recommended — it starts with a low-friction proof and escalates only when the risk score calls for it.', 'redeyed-sentinel' ),
+				$is_live
 			);
 		}
 
@@ -529,10 +552,23 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 * Render the Theme field.
 		 */
 		public function render_theme_field() {
-			$this->render_text_setting(
+			$caps    = $this->get_capabilities();
+			$is_live = is_array( $caps );
+			$themes  = $is_live && ! empty( $caps['themes'] ) ? (array) $caps['themes'] : array( 'auto', 'light', 'dark' );
+
+			$choices = array();
+			foreach ( $themes as $theme ) {
+				$choices[ $theme ] = 'auto' === $theme
+					? __( 'auto — follow the system setting', 'redeyed-sentinel' )
+					: $theme;
+			}
+
+			$this->render_select_setting(
 				'theme',
-				'auto',
-				__( 'Widget theme: <code>auto</code>, <code>light</code> or <code>dark</code>. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+				$choices,
+				__( 'Use the Sentinel default', 'redeyed-sentinel' ),
+				__( 'Colour theme for the widget.', 'redeyed-sentinel' ),
+				$is_live
 			);
 		}
 
@@ -540,10 +576,36 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 		 * Render the Colour scheme field.
 		 */
 		public function render_scheme_field() {
-			$this->render_text_setting(
+			$caps    = $this->get_capabilities();
+			$is_live = is_array( $caps );
+
+			$choices = array();
+			if ( $is_live && ! empty( $caps['schemes'] ) ) {
+				foreach ( (array) $caps['schemes'] as $scheme ) {
+					if ( empty( $scheme['name'] ) ) {
+						continue;
+					}
+					$name = (string) $scheme['name'];
+					// A premium scheme on a free plan silently renders as
+					// `default`, so say so rather than offering a choice that
+					// quietly does nothing.
+					$choices[ $name ] = empty( $scheme['premium'] )
+						? $name
+						/* translators: %s: colour scheme name. */
+						: sprintf( __( '%s (paid plans only)', 'redeyed-sentinel' ), $name );
+				}
+			} else {
+				foreach ( array( 'default', 'ocean', 'forest', 'sunset', 'graphite' ) as $name ) {
+					$choices[ $name ] = $name;
+				}
+			}
+
+			$this->render_select_setting(
 				'scheme',
-				'',
-				__( 'Optional colour scheme name for the widget. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+				$choices,
+				__( 'Use the Sentinel default', 'redeyed-sentinel' ),
+				__( 'Colour scheme for the widget.', 'redeyed-sentinel' ),
+				$is_live
 			);
 		}
 
@@ -597,6 +659,103 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				esc_attr( $placeholder )
 			);
 			echo '<p class="description">' . wp_kses_post( $description ) . '</p>';
+		}
+
+		/* --------------------------------------------------------------------- *
+		 * Capability discovery
+		 * --------------------------------------------------------------------- */
+
+		/**
+		 * Fetch the challenge types / themes / schemes this Sentinel deployment
+		 * accepts, from GET {base_url}/captcha/capabilities.
+		 *
+		 * Hardcoding these lists is what let a stale value like "checkbox" sit in
+		 * this plugin for months doing nothing: an unrecognised data-widget is not
+		 * an error, it silently falls back to the site default. Reading the list
+		 * from the server means new challenge types appear here without a plugin
+		 * release.
+		 *
+		 * Cached for 12 hours. Fails soft: on any error the caller falls back to a
+		 * built-in list, so the settings screen still works offline or behind a
+		 * firewall. No keys are sent — the endpoint is public.
+		 *
+		 * @return array|null Decoded capabilities, or null when unavailable.
+		 */
+		private function get_capabilities() {
+			$cached = get_transient( 'redeyed_sentinel_capabilities' );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+
+			$response = wp_remote_get(
+				$this->get_base_url() . '/captcha/capabilities',
+				array(
+					'timeout' => 5,
+					'headers' => array( 'Accept' => 'application/json' ),
+				)
+			);
+
+			if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+				// Cache the failure briefly so a broken endpoint cannot make every
+				// settings page load wait on a 5-second timeout.
+				set_transient( 'redeyed_sentinel_capabilities', array(), 5 * MINUTE_IN_SECONDS );
+				return null;
+			}
+
+			$body = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( ! is_array( $body ) || empty( $body['types']['concrete'] ) ) {
+				set_transient( 'redeyed_sentinel_capabilities', array(), 5 * MINUTE_IN_SECONDS );
+				return null;
+			}
+
+			set_transient( 'redeyed_sentinel_capabilities', $body, 12 * HOUR_IN_SECONDS );
+			return $body;
+		}
+
+		/**
+		 * Render a <select> whose options come from the capabilities endpoint,
+		 * falling back to a static list when it cannot be reached.
+		 *
+		 * The stored value is always preserved as an option even if the server no
+		 * longer advertises it, so opening the settings page can never silently
+		 * change a site's configuration.
+		 *
+		 * @param string $key      Option key.
+		 * @param array  $choices  value => label.
+		 * @param string $blank    Label for the empty (inherit) choice.
+		 * @param string $note     Description shown under the field.
+		 * @param bool   $is_live  Whether $choices came from the server.
+		 */
+		private function render_select_setting( $key, $choices, $blank, $note, $is_live ) {
+			$options = $this->get_options();
+			$current = (string) $options[ $key ];
+
+			if ( '' !== $current && ! isset( $choices[ $current ] ) ) {
+				/* translators: %s: the configured value, which the server no longer lists. */
+				$choices[ $current ] = sprintf( __( '%s (not currently offered)', 'redeyed-sentinel' ), $current );
+			}
+
+			printf(
+				'<select id="redeyed_sentinel_%1$s" name="%2$s[%1$s]">',
+				esc_attr( $key ),
+				esc_attr( self::OPTION_KEY )
+			);
+			printf( '<option value="" %s>%s</option>', selected( $current, '', false ), esc_html( $blank ) );
+			foreach ( $choices as $value => $label ) {
+				printf(
+					'<option value="%s" %s>%s</option>',
+					esc_attr( $value ),
+					selected( $current, (string) $value, false ),
+					esc_html( $label )
+				);
+			}
+			echo '</select>';
+
+			echo '<p class="description">' . wp_kses_post( $note );
+			if ( ! $is_live ) {
+				echo ' <em>' . esc_html__( 'Showing a built-in list — the Sentinel server could not be reached.', 'redeyed-sentinel' ) . '</em>';
+			}
+			echo '</p>';
 		}
 
 		/**

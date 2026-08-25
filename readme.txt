@@ -2,17 +2,17 @@
 Contributors: bruted
 Tags: captcha, spam, security, login, comments
 Requires at least: 5.8
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.5
+Stable tag: 1.0.7
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Self-hosted CAPTCHA & IP-reputation for WordPress login, registration, lost-password & comments, with a block log. Inert until keys are set.
+Free CAPTCHA and IP-reputation for WordPress login, registration, lost-password and comments, with a block log. Inert until your keys are set.
 
 == Description ==
 
-Redeyed Sentinel is a free, self-hosted-friendly CAPTCHA and IP-reputation service for WordPress. It protects the forms bots love most — login, registration, lost-password and comments — without tracking your visitors or slowing your site down, and can log every blocked attempt so you can see it working.
+Redeyed Sentinel is a free CAPTCHA and IP-reputation service for WordPress. It protects the forms bots love most — login, registration, lost-password and comments — without tracking your visitors or slowing your site down, and can log every blocked attempt so you can see it working.
 
 The plugin is **free to install and does nothing until you enter your keys**. With no Site Key and Secret Key configured, Sentinel stays completely inert: no widget is rendered, no requests are made, and your forms behave exactly as before.
 
@@ -37,7 +37,7 @@ Your Secret Key is sent only from your server to the Sentinel verification endpo
 3. Go to **Settings → Sentinel**.
 4. In the Redeyed Lab, open **Sentinel → Sites**, create a site, and copy its **Site Key** and **Secret Key** (the Secret Key is shown once).
 5. Paste the **Site Key** and **Secret Key** into the plugin settings.
-6. (Optional) Change the **Base URL** only if you run a self-hosted Sentinel deployment. The default is `https://redeyed.com`.
+6. (Optional) Change the **Base URL** only if you point at a custom Sentinel endpoint. The default is `https://redeyed.com`.
 7. Tick the forms you want to protect — **Login**, **Registration**, and/or **Comments** — and save.
 8. (Optional) Fill in any of the **Widget Customization** fields to change how the widget looks and behaves.
 
@@ -61,9 +61,9 @@ Never. The Secret Key is sent only from your server to the Sentinel verification
 
 If the verification request fails or the token is missing while Sentinel is configured, that submission is blocked. If your keys are not configured at all, the plugin fails open and never blocks a submission.
 
-= Can I use this with a self-hosted Sentinel instance? =
+= Can I point this at a custom Sentinel endpoint? =
 
-Yes. Change the **Base URL** on the settings screen to point at your own Sentinel deployment.
+Yes. Change the **Base URL** on the settings screen to point at your own Sentinel endpoint.
 
 = Which forms are supported? =
 
@@ -73,7 +73,7 @@ The WordPress login form, the user registration form, and the comment form. Each
 
 Yes. The **Widget Customization** section of Settings → Sentinel adds six optional, site-wide defaults, each rendered as a `data-*` attribute on the widget only when you set it:
 
-* **Widget type** (`data-widget`) — e.g. `behavioral`, `checkbox`, `press_hold`, `image_pick`.
+* **Widget type** (`data-widget`) — `adaptive` (recommended), `all` (random per visitor), or a specific type: `behavioral`, `pow`, `press_hold`, `text_math`, `image_puzzle`, `rotate_align`, `image_pick`, `relational_scene`, `motion_track`, `light_shadow`, `shape_match`.
 * **Theme** (`data-theme`) — `auto`, `light` or `dark`.
 * **Colour scheme** (`data-scheme`) — a Sentinel colour-scheme name.
 * **Difficulty** (`data-difficulty`) — `easy`, `medium`, `hard`, `max`, or `1`–`6`.
@@ -88,6 +88,16 @@ Every field is optional; leave any blank to use the Sentinel default. **Difficul
 2. The Sentinel CAPTCHA widget on the login form.
 
 == Changelog ==
+
+= 1.0.7 =
+* **Widget type, Theme and Colour scheme are now dropdowns** instead of free-text fields, populated live from your Sentinel server. New challenge types and colour schemes appear automatically — no plugin update needed.
+* Premium colour schemes are labelled as paid-plan only. Previously you could type one on a free plan and it would silently render the default instead.
+* If the server cannot be reached the settings screen falls back to a built-in list and says so, and a value you already saved is always preserved even if it is no longer offered.
+
+= 1.0.6 =
+* Tested up to WordPress 7.1.
+* Widget type setting now documents every available challenge, including the new **Object match** 3D challenge (`shape_match`) and the `relational_scene`, `motion_track` and `light_shadow` reasoning challenges.
+* Removed `checkbox` from the documented widget types — it was never a real Sentinel challenge and silently fell back to the site default. Use `behavioral` for the one-click checkbox, or `adaptive` to let Sentinel choose.
 
 = 1.0.5 =
 * Added **Lost Password** form protection (with its own on/off toggle), alongside login, registration and comments.
