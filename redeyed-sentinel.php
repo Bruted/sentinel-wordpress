@@ -527,8 +527,14 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 
 			if ( $is_live ) {
+				// Use the labels the server sends, not the key. Titling the key
+				// gives "Shape Match", but that challenge matches on colour too
+				// and is called "Object match" everywhere a customer reads it.
+				$labels = isset( $caps['types']['labels'] ) ? (array) $caps['types']['labels'] : array();
 				foreach ( (array) $caps['types']['concrete'] as $type ) {
-					$choices[ $type ] = $type;
+					$choices[ $type ] = isset( $labels[ $type ] )
+						? $labels[ $type ]
+						: ucwords( str_replace( '_', ' ', (string) $type ) );
 				}
 			} else {
 				// Offline fallback. Kept deliberately short: the server is the
