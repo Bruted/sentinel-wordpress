@@ -3,7 +3,7 @@
  * Plugin Name:       Redeyed Sentinel
  * Plugin URI:        https://redeyed.com/sentinel
  * Description:       Adds the Redeyed Sentinel CAPTCHA and IP-reputation check to your WordPress login, registration, lost-password and comment forms, with an admin block log. Free to install and completely inert until you enter your Sentinel keys.
- * Version:           1.0.7
+ * Version:           1.1.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Redeyed Corporation
@@ -158,6 +158,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'              => '',
 				'scheme'             => '',
 				'difficulty'         => '',
+				'widget_steps'       => '',
 				'width'              => '',
 				'form'               => '',
 			);
@@ -359,6 +360,14 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 			);
 
 			add_settings_field(
+				'widget_steps',
+				__( 'Verification steps', 'redeyed-sentinel' ),
+				array( $this, 'render_widget_steps_field' ),
+				'redeyed-sentinel',
+				'redeyed_sentinel_appearance'
+			);
+
+			add_settings_field(
 				'width',
 				__( 'Width', 'redeyed-sentinel' ),
 				array( $this, 'render_width_field' ),
@@ -403,6 +412,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'           => isset( $input['theme'] ) ? sanitize_text_field( $input['theme'] ) : '',
 				'scheme'          => isset( $input['scheme'] ) ? sanitize_text_field( $input['scheme'] ) : '',
 				'difficulty'      => isset( $input['difficulty'] ) ? sanitize_text_field( $input['difficulty'] ) : '',
+				'widget_steps'    => isset( $input['widget_steps'] ) ? sanitize_text_field( $input['widget_steps'] ) : '',
 				'width'           => isset( $input['width'] ) ? sanitize_text_field( $input['width'] ) : '',
 				'form'            => isset( $input['form'] ) ? sanitize_text_field( $input['form'] ) : '',
 			);
@@ -623,6 +633,17 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'difficulty',
 				'medium',
 				__( 'Minimum challenge strength: <code>easy</code>, <code>medium</code>, <code>hard</code>, <code>max</code> (or <code>1</code>–<code>6</code>). This only <strong>raises</strong> difficulty above the adaptive baseline — a risky visitor is always challenged hard regardless. Leave blank for the Sentinel default.', 'redeyed-sentinel' )
+			);
+		}
+
+		/**
+		 * Render the Verification steps field.
+		 */
+		public function render_widget_steps_field() {
+			$this->render_text_setting(
+				'widget_steps',
+				'3',
+				__( 'Number of verification steps, <code>1</code>–<code>7</code>. <strong>Paid plans only.</strong> Like difficulty this only <strong>raises</strong> the step count above the adaptive baseline — it never lowers it. Leave blank to let Sentinel decide.', 'redeyed-sentinel' )
 			);
 		}
 
@@ -1071,6 +1092,7 @@ if ( ! class_exists( 'Redeyed_Sentinel' ) ) :
 				'theme'      => 'data-theme',
 				'scheme'     => 'data-scheme',
 				'difficulty' => 'data-difficulty',
+				'widget_steps' => 'data-widget-steps',
 				'width'      => 'data-width',
 				'form'       => 'data-form',
 			);
