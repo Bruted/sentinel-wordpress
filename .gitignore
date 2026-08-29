@@ -22,3 +22,8 @@ __pycache__/
 xcuserdata/
 DerivedData/
 *.xcuserstate
+
+# Built plugin bundles. Attach these to a GitHub Release instead of
+# tracking them: each rebuild is a new binary blob in history, and git
+# stores them whole rather than as diffs.
+*.zip
